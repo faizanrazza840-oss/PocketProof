@@ -1,0 +1,11 @@
+{
+  "name": "pocketproof",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PocketProof local-first document and warranty organizer prototype",
+  "scripts": {
+    "build": "echo 'Static web app ready in www/'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
