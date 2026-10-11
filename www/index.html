@@ -1,0 +1,251 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#090d18">
+<title>PocketProof</title>
+<style>
+:root{--bg:#090d18;--panel:#121a2b;--text:#f4f7ff;--muted:#9ca8bd;--green:#35d49a;--red:#ff647c;--blue:#638cff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+.app{max-width:650px;margin:auto;padding:22px 16px 95px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:25px}
+.logo{font-size:25px;font-weight:800;letter-spacing:-1px}
+.logo span{color:var(--blue)}
+.tag{color:var(--muted);font-size:12px}
+h2{font-size:17px;margin:0 0 14px}
+.card{background:var(--panel);border:1px solid #27344b;border-radius:20px;padding:20px;margin-bottom:17px}
+.hero{background:linear-gradient(135deg,#1a2b50,#121a2b);padding:24px}
+.label{color:var(--muted);font-size:13px}
+.balance{font-size:35px;font-weight:800;margin:12px 0 22px;overflow-wrap:anywhere}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat{background:#0d1423;padding:13px;border-radius:13px}
+.stat strong{display:block;font-size:18px;margin-top:8px;overflow-wrap:anywhere}
+.green{color:var(--green)}.red{color:var(--red)}
+input,select,button{width:100%;padding:14px;border-radius:12px;border:1px solid #303d55;background:#0b1220;color:var(--text);font-size:15px;margin:6px 0}
+button{background:var(--blue);border:0;font-weight:bold;cursor:pointer}
+.types{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.types button{background:#202b40}
+.types button.active{background:var(--blue)}
+.list{display:grid;gap:9px}
+.item{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#0d1423;border-radius:12px;padding:13px}
+.item small{display:block;color:var(--muted);margin-top:5px}
+.item .amount{font-weight:bold;white-space:nowrap}
+.delete{width:auto;padding:8px 10px;margin:0;background:#39202c}
+.empty{text-align:center;color:var(--muted);padding:20px 0}
+.note{font-size:12px;color:var(--muted);line-height:1.5}
+.bottom{position:fixed;bottom:0;left:0;right:0;background:#101726;border-top:1px solid #27344b;text-align:center;padding:14px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<div>
+<div class="logo">Pocket<span>Proof</span></div>
+<div class="tag">Your money, made clear.</div>
+</div>
+<div>💳</div>
+</header>
+
+<section class="card hero">
+<div class="label">TOTAL BALANCE</div>
+<div class="balance" id="balance">₹0.00</div>
+<div class="stats">
+<div class="stat">
+<div class="label">↗ Total Income</div>
+<strong class="green" id="income">₹0.00</strong>
+</div>
+<div class="stat">
+<div class="label">↘ Total Expenses</div>
+<strong class="red" id="expense">₹0.00</strong>
+</div>
+</div>
+</section>
+
+<section class="card">
+<h2>Add transaction</h2>
+<div class="types">
+<button id="incomeBtn" class="active" onclick="setType('income')">＋ Income</button>
+<button id="expenseBtn" onclick="setType('expense')">− Expense</button>
+</div>
+<form id="form">
+<input id="title" placeholder="Transaction name" maxlength="80" required>
+<input id="amount" type="number" placeholder="Amount" min="0.01" max="999999999" step="0.01" required>
+<select id="category">
+<option>General</option>
+<option>Food</option>
+<option>Travel</option>
+<option>Shopping</option>
+<option>Bills</option>
+<option>Salary</option>
+<option>Business</option>
+<option>Other</option>
+</select>
+<input id="date" type="date" required>
+<button type="submit">Save transaction</button>
+</form>
+<p class="note">Your transactions are saved on this device's browser. Clearing browser data may erase them.</p>
+</section>
+
+<section class="card">
+<h2>Transaction history</h2>
+<input id="search" placeholder="Search transactions..." oninput="render()">
+<div id="history" class="list"></div>
+<button onclick="exportData()">Export backup (JSON)</button>
+<button onclick="clearAll()" style="background:#39202c">Delete all transactions</button>
+</section>
+</div>
+<div class="bottom">PocketProof · Personal finance tracker</div>
+
+<script>
+const KEY="pocketproof_transactions_v1";
+let transactions=[];
+let type="income";
+
+try {
+  const saved=localStorage.getItem(KEY);
+  transactions=saved?JSON.parse(saved):[];
+  if(!Array.isArray(transactions)) transactions=[];
+} catch(e) {
+  transactions=[];
+}
+
+function money(value){
+  return new Intl.NumberFormat("en-IN",{
+    style:"currency",currency:"INR",maximumFractionDigits:2
+  }).format(value);
+}
+
+function setType(next){
+  type=next;
+  document.getElementById("incomeBtn").classList.toggle("active",type==="income");
+  document.getElementById("expenseBtn").classList.toggle("active",type==="expense");
+}
+
+function save(){
+  try {
+    localStorage.setItem(KEY,JSON.stringify(transactions));
+    return true;
+  } catch(e) {
+    alert("Storage unavailable. Please check your browser settings.");
+    return false;
+  }
+}
+
+document.getElementById("date").value=
+  new Date().toLocaleDateString("en-CA");
+
+document.getElementById("form").addEventListener("submit",function(e){
+  e.preventDefault();
+
+  const title=document.getElementById("title").value.trim();
+  const amount=Number(document.getElementById("amount").value);
+  const category=document.getElementById("category").value;
+  const date=document.getElementById("date").value;
+
+  if(!title||!Number.isFinite(amount)||amount<=0||amount>999999999||!date){
+    alert("Please enter valid transaction details.");
+    return;
+  }
+
+  transactions.unshift({
+    id:Date.now().toString()+Math.random().toString(36).slice(2,7),
+    title,amount,category,date,type
+  });
+
+  if(!save()){
+    transactions.shift();
+    return;
+  }
+
+  this.reset();
+  document.getElementById("date").value=
+    new Date().toLocaleDateString("en-CA");
+  render();
+});
+
+function render(){
+  const income=transactions
+    .filter(t=>t.type==="income")
+    .reduce((sum,t)=>sum+t.amount,0);
+  const expense=transactions
+    .filter(t=>t.type==="expense")
+    .reduce((sum,t)=>sum+t.amount,0);
+
+  document.getElementById("balance").textContent=money(income-expense);
+  document.getElementById("income").textContent=money(income);
+  document.getElementById("expense").textContent=money(expense);
+
+  const query=document.getElementById("search").value.toLowerCase();
+  const filtered=transactions.filter(t=>
+    (t.title+" "+t.category+" "+t.date).toLowerCase().includes(query)
+  );
+
+  const history=document.getElementById("history");
+  history.innerHTML="";
+
+  if(filtered.length===0){
+    history.innerHTML='<div class="empty">No transactions yet.</div>';
+    return;
+  }
+
+  filtered.forEach(t=>{
+    const row=document.createElement("div");
+    row.className="item";
+
+    const info=document.createElement("div");
+    const name=document.createElement("strong");
+    name.textContent=t.title;
+    const details=document.createElement("small");
+    details.textContent=t.category+" · "+t.date;
+    info.append(name,details);
+
+    const right=document.createElement("div");
+    right.style.textAlign="right";
+    const amount=document.createElement("div");
+    amount.className="amount "+(t.type==="income"?"green":"red");
+    amount.textContent=(t.type==="income"?"+":"−")+money(t.amount);
+
+    const del=document.createElement("button");
+    del.className="delete";
+    del.textContent="Delete";
+    del.onclick=()=>{
+      if(confirm("Delete this transaction?")){
+        transactions=transactions.filter(x=>x.id!==t.id);
+        save();
+        render();
+      }
+    };
+
+    right.append(amount,del);
+    row.append(info,right);
+    history.appendChild(row);
+  });
+}
+
+function exportData(){
+  const blob=new Blob([JSON.stringify(transactions,null,2)],{
+    type:"application/json"
+  });
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="pocketproof-backup.json";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function clearAll(){
+  if(!confirm("Delete ALL transactions? This cannot be undone.")) return;
+  const old=transactions;
+  transactions=[];
+  if(!save()) transactions=old;
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
