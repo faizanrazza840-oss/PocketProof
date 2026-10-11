@@ -1,11 +1,16 @@
+
 {
   "name": "pocketproof",
   "version": "1.0.0",
   "private": true,
-  "description": "PocketProof local-first document and warranty organizer prototype",
+  "description": "PocketProof personal finance app",
   "scripts": {
-    "build": "echo 'Static web app ready in www/'"
+    "build": "echo PocketProof ready"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "@capacitor/core": "^7.4.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3"
+  }
 }
